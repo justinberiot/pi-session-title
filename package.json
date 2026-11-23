@@ -1,0 +1,42 @@
+{
+  "name": "pi-session-title",
+  "version": "0.1.0",
+  "description": "Names Pi sessions after their task, the way Codex and Claude Code do, and puts the name in the terminal title",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "session-name",
+    "terminal-title"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/justinberiot/pi-session-title"
+  },
+  "type": "module",
+  "files": [
+    "index.ts",
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "check": "npm run typecheck && npm run test",
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "dependencies": {
+    "effect": "4.0.3"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-ai": "1.6.0",
+    "@earendil-works/pi-coding-agent": "1.6.0",
+    "@types/node": "^24.5.2",
+    "typescript": "^5.9.2"
+  }
+}
