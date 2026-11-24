@@ -9,9 +9,9 @@
  */
 
 import { Option, Schema } from "effect";
+import { TITLE_MAX_CHARS, TITLE_RULES } from "./title-rules.ts";
 
-/** The longest title kept, in characters, as in Codex. */
-export const TITLE_MAX_CHARS = 36;
+export { TITLE_MAX_CHARS, TITLE_RULES } from "./title-rules.ts";
 
 /** The most of the prompt the model sees, in UTF-8 bytes, as in Codex. */
 export const TITLE_PROMPT_MAX_BYTES = 960;
@@ -35,10 +35,7 @@ const FALLBACK_INPUT_MAX_CHARS = 2_000;
 /** Codex's instructions, plus the JSON answer Codex gets from a schema. */
 const TITLE_INSTRUCTIONS =
   `Generate a concise, single-line task title of at most ${TITLE_MAX_CHARS} characters ` +
-  "and under five words where possible. Start with an imperative verb. Capitalize only " +
-  "the first word unless the user's language, proper nouns, acronyms, or code terms " +
-  "require otherwise. Preserve ticket references exactly. Write in the user's language. " +
-  "Do not use quotes, markdown, or trailing punctuation. Do not answer the request.\n" +
+  `and under five words where possible. ${TITLE_RULES} Do not answer the request.\n` +
   'Reply with only a JSON object of the form {"title": "..."} and nothing else.';
 
 const encoder = new TextEncoder();
@@ -169,14 +166,38 @@ const decodeGeneratedTitle = Schema.decodeUnknownOption(GeneratedTitle);
 /** Quotes Codex strips from either end of a title. */
 const QUOTES = /^["'`“”‘’]+|["'`“”‘’]+$/gu;
 
-/** A title cleaned the way Codex cleans one; None when nothing is left. */
+const graphemes = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+
+/**
+ * `text` cut to `maxChars` characters at the last word boundary that fits, so a title never ends
+ * mid-word or mid-emoji. A single word longer than that is cut where it reaches the limit.
+ */
+const boundedAtWord = (text: string, maxChars: number): string => {
+  const characters = Array.from(graphemes.segment(text), ({ segment }) => segment);
+  if (characters.length <= maxChars) return text;
+  const cut = characters.slice(0, maxChars + 1).join("");
+  const lastSpace = cut.lastIndexOf(" ");
+  return (lastSpace > 0 ? cut.slice(0, lastSpace) : characters.slice(0, maxChars).join("")).trimEnd();
+};
+
+/**
+ * A title cleaned the way Codex cleans one, but cut at a word boundary where Codex cuts at the
+ * 36th character; None when nothing is left.
+ */
 const normalizeTitle = (title: string): Option.Option<string> => {
   const normalized = collapseWhitespace(title.trim().replace(QUOTES, ""))
     .replace(/[.?!]+$/u, "")
     .trimEnd();
   if (normalized.length === 0) return Option.none();
-  return Option.some(Array.from(normalized).slice(0, TITLE_MAX_CHARS).join(""));
+  return Option.some(boundedAtWord(normalized, TITLE_MAX_CHARS));
 };
+
+/**
+ * The title the agent passed to `set_session_title`, cleaned as a generated
+ * one; None when it is empty or spans several lines.
+ */
+export const parseAgentTitle = (title: string): Option.Option<string> =>
+  title.trim().includes("\n") ? Option.none() : normalizeTitle(title);
 
 /**
  * The title in a model's answer. The answer should be `{"title": "..."}`;

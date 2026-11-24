@@ -6,6 +6,7 @@ import {
   conversationTitleRequest,
   fallbackTitle,
   firstPromptTitleRequest,
+  parseAgentTitle,
   parseGeneratedTitle,
   TITLE_PROMPT_MAX_BYTES,
 } from "../src/title-text.ts";
@@ -34,6 +35,13 @@ test("the first-message request stays within Codex's byte budget without splitti
   assert.ok(bytes(request) <= TITLE_PROMPT_MAX_BYTES);
   assert.ok(!request.includes("\uFFFD"));
   assert.ok(request.includes("User prompt:\n"));
+});
+
+test("a long title is cut at a word boundary, a single long word at 36 characters", () => {
+  assert.deepEqual(
+    parseGeneratedTitle('{"title": "Refactor the authentication module into smaller services"}'),
+    Option.some("Refactor the authentication module"),
+  );
 });
 
 test("titles are normalized the way Codex normalizes them", () => {
@@ -70,4 +78,17 @@ test("the conversation request keeps the latest eight messages, escaped, within 
 
 test("a conversation with no text has nothing to name", () => {
   assert.deepEqual(conversationTitleRequest([{ role: "user", text: "  " }]), Option.none());
+});
+
+test("the agent's title is cleaned like a generated one", () => {
+  assert.deepEqual(parseAgentTitle('  "Fix   login redirect."  '), Option.some("Fix login redirect"));
+  assert.deepEqual(
+    parseAgentTitle("Compare Optime pricing with every competitor in Germany"),
+    Option.some("Compare Optime pricing with every"),
+  );
+});
+
+test("the agent's title must be one line of words", () => {
+  assert.deepEqual(parseAgentTitle("Fix login\nredirect"), Option.none());
+  assert.deepEqual(parseAgentTitle(" \"\" "), Option.none());
 });

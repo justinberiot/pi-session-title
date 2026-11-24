@@ -14,7 +14,7 @@ import { Cause, Effect, Exit, Fiber, Layer, ManagedRuntime, Option } from "effec
 import { TitleGenerationError } from "./errors.ts";
 import { conversationTitle, firstPromptTitle } from "./title-generator.ts";
 import { type TitleModelAccess, titleModelLayer } from "./title-model.ts";
-import { type ConversationMessage, fallbackTitle } from "./title-text.ts";
+import { type ConversationMessage, fallbackTitle, parseAgentTitle } from "./title-text.ts";
 
 export type { ConversationMessage } from "./title-text.ts";
 export type { TitleModelAccess } from "./title-model.ts";
@@ -48,6 +48,8 @@ export interface TitleRuntime {
     messages: ReadonlyArray<ConversationMessage>,
     access: TitleModelAccess,
   ) => Promise<RetitleResult>;
+  /** The title the agent passed to `set_session_title`, cleaned; undefined when unusable. */
+  readonly agentTitle: (title: string) => string | undefined;
   /** Interrupt the title being written, if any. */
   readonly cancel: () => void;
   /** Interrupt everything and release the runtime. It cannot be used again. */
@@ -128,6 +130,8 @@ export const startTitleRuntime = (): TitleRuntime => {
           },
         );
       }),
+
+    agentTitle: (title) => Option.getOrUndefined(parseAgentTitle(title)),
 
     cancel,
 
